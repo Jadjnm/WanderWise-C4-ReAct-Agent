@@ -1,266 +1,253 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 1000" width="1150" height="1000" style="background:#ffffff; font-family:system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 960" width="1150" height="960" style="background:#ffffff; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
   <defs>
-    <!-- Arrowhead Marker for Grey Lines -->
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b"/>
+    <!-- Crisp, minimalist arrowhead -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 1 2 L 7 5 L 1 8 z" fill="#64748b"/>
     </marker>
-    <!-- Drop Shadow Filter for Clean Modern Look -->
-    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
-      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.06"/>
-    </filter>
   </defs>
 
-  <!-- Canvas Outer Card Border -->
-  <rect x="15" y="15" width="1120" height="970" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
-
   <!-- ========================================================================= -->
-  <!-- HEADER: TITLE & ONE-LINE LEGEND                                          -->
+  <!-- HEADER & MINIMAL ONE-LINE LEGEND                                          -->
   <!-- ========================================================================= -->
-  <text x="575" y="55" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a" letter-spacing="-0.02em">
+  <text x="575" y="44" text-anchor="middle" font-size="18" font-weight="600" fill="#0f172a" letter-spacing="-0.01em">
     C4 ReAct Agent — LangGraph State Machine Architecture
   </text>
 
-  <!-- Legend Bar -->
-  <g transform="translate(575, 86)">
-    <rect x="-375" y="-14" width="750" height="28" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
-    <!-- Solid Sample -->
-    <line x1="-350" y1="0" x2="-315" y2="0" stroke="#64748b" stroke-width="2.5"/>
-    <text x="-305" y="4" font-size="12" fill="#334155" font-weight="500">
-      <tspan font-weight="700" fill="#0f172a">solid = always</tspan>;
+  <!-- Sleek, minimal legend line without bulky container -->
+  <g transform="translate(575, 70)">
+    <line x1="-280" y1="0" x2="-255" y2="0" stroke="#64748b" stroke-width="1.5"/>
+    <text x="-247" y="4" font-size="12" fill="#475569">
+      <tspan font-weight="600" fill="#1e293b">solid = always</tspan>;
     </text>
-    <!-- Dashed Sample -->
-    <line x1="-200" y1="0" x2="-165" y2="0" stroke="#64748b" stroke-width="2" stroke-dasharray="5,3"/>
-    <text x="-155" y="4" font-size="12" fill="#334155" font-weight="500">
-      <tspan font-weight="700" fill="#0f172a">dashed = conditional edge</tspan> chosen by <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="11.5" font-weight="600" fill="#0f172a">should_continue</tspan> / <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="11.5" font-weight="600" fill="#0f172a">should_guard_forced</tspan>
+    <line x1="-155" y1="0" x2="-130" y2="0" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <text x="-122" y="4" font-size="12" fill="#475569">
+      <tspan font-weight="600" fill="#1e293b">dashed = conditional edge</tspan> chosen by <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" fill="#0f172a">should_continue</tspan> / <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="11" fill="#0f172a">should_guard_forced</tspan>
     </text>
   </g>
 
   <!-- ========================================================================= -->
-  <!-- EDGES LAYER (Drawn underneath nodes)                                      -->
+  <!-- EDGES LAYER (Minimalist 1.5px lines)                                      -->
   <!-- ========================================================================= -->
 
   <!-- Outside Box -> START (Solid Grey Arrow) -->
-  <path d="M 495 175 L 526 175" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M 475 160 L 528 160" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- START -> reason (Solid Grey Arrow) -->
-  <path d="M 575 205 L 575 274" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M 575 186 L 575 258" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
 
-  <!-- reason -> reason (Dashed Self-Loop on open upper-right) -->
-  <path d="M 710 278 C 710 215, 840 215, 840 280 C 840 316, 810 320, 804 320" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+  <!-- reason -> reason (Dashed Self-Loop) -->
+  <path d="M 700 260 C 700 200, 830 200, 830 262 C 830 298, 805 304, 798 304" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
 
   <!-- act -> reason (SOLID Arrow, Observation return) -->
-  <path d="M 160 475 C 160 345, 250 345, 346 345" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M 160 450 C 160 325, 250 325, 348 325" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- reason -> act (Dashed Conditional Arrow) -->
-  <path d="M 350 385 C 310 385, 275 425, 275 471" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+  <path d="M 350 365 C 300 365, 265 405, 265 448" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
 
   <!-- reason -> force_answer (Dashed Conditional Arrow) -->
-  <path d="M 740 403 C 740 445, 870 445, 870 471" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+  <path d="M 740 380 C 740 420, 875 420, 875 448" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
 
   <!-- reason -> guard (Dashed Conditional Arrow) -->
-  <path d="M 575 403 L 575 661" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+  <path d="M 575 380 L 575 638" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
 
   <!-- force_answer -> guard (Dashed Conditional Arrow) -->
-  <path d="M 840 570 C 840 635, 737 635, 737 701" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+  <path d="M 845 540 C 845 610, 735 610, 735 678" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
 
   <!-- guard -> END (SOLID Arrow) -->
-  <path d="M 575 760 L 575 876" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M 575 730 L 575 848" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- reason -> END (Dashed Conditional Arrow, routed through open left corridor) -->
-  <path d="M 385 403 L 385 580 C 385 640, 260 650, 260 720 L 260 790 C 260 860, 420 907, 526 907" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+  <path d="M 385 380 L 385 550 C 385 615, 260 625, 260 695 L 260 765 C 260 835, 420 875, 528 875" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
 
   <!-- force_answer -> END (Dashed Conditional Arrow, routed through open right corridor) -->
-  <path d="M 960 570 L 960 790 C 960 860, 720 907, 624 907" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+  <path d="M 955 540 L 955 765 C 955 835, 720 875, 622 875" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
 
   <!-- ========================================================================= -->
-  <!-- EDGE LABELS (Pills with white backgrounds so lines never cross text)     -->
+  <!-- EDGE LABELS (Minimal white badges with subtle border)                      -->
   <!-- ========================================================================= -->
 
   <!-- Label: reason -> reason (self-loop) -->
-  <g transform="translate(775, 215)">
-    <rect x="-135" y="-12" width="270" height="24" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
-    <text x="0" y="4" text-anchor="middle" font-size="11.5" font-weight="600" fill="#334155">
+  <g transform="translate(765, 202)">
+    <rect x="-130" y="-11" width="260" height="22" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+    <text x="0" y="4" text-anchor="middle" font-size="11" font-weight="500" fill="#334155">
       format error (no Action or Final Answer)
     </text>
   </g>
 
   <!-- Label: act -> reason (Observation) -->
-  <g transform="translate(240, 345)">
-    <rect x="-55" y="-12" width="110" height="24" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
-    <text x="0" y="4" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1e293b">
+  <g transform="translate(240, 325)">
+    <rect x="-50" y="-11" width="100" height="22" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+    <text x="0" y="4" text-anchor="middle" font-size="11" font-weight="600" fill="#0f172a">
       Observation
     </text>
   </g>
 
   <!-- Label: reason -> act (Action) -->
-  <g transform="translate(305, 425)">
-    <rect x="-65" y="-12" width="130" height="24" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
-    <text x="0" y="4" text-anchor="middle" font-size="11.5" font-weight="600" fill="#334155">
+  <g transform="translate(295, 405)">
+    <rect x="-60" y="-11" width="120" height="22" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+    <text x="0" y="4" text-anchor="middle" font-size="11" font-weight="500" fill="#334155">
       Action: tool(args)
     </text>
   </g>
 
   <!-- Label: reason -> force_answer -->
-  <g transform="translate(805, 435)">
-    <rect x="-105" y="-12" width="210" height="24" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
-    <text x="0" y="4" text-anchor="middle" font-size="11.5" font-weight="600" fill="#334155">
+  <g transform="translate(810, 412)">
+    <rect x="-95" y="-11" width="190" height="22" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+    <text x="0" y="4" text-anchor="middle" font-size="11" font-weight="500" fill="#334155">
       step limit (5), loop guards on
     </text>
   </g>
 
   <!-- Label: reason -> guard -->
-  <g transform="translate(575, 525)">
-    <rect x="-105" y="-12" width="210" height="24" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
-    <text x="0" y="4" text-anchor="middle" font-size="11.5" font-weight="600" fill="#334155">
+  <g transform="translate(575, 508)">
+    <rect x="-95" y="-11" width="190" height="22" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+    <text x="0" y="4" text-anchor="middle" font-size="11" font-weight="500" fill="#334155">
       Final Answer (guardrails on)
     </text>
   </g>
 
   <!-- Label: force_answer -> guard -->
-  <g transform="translate(825, 635)">
-    <rect x="-90" y="-12" width="180" height="24" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
-    <text x="0" y="4" text-anchor="middle" font-size="11.5" font-weight="600" fill="#334155">
+  <g transform="translate(820, 610)">
+    <rect x="-80" y="-11" width="160" height="22" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+    <text x="0" y="4" text-anchor="middle" font-size="11" font-weight="500" fill="#334155">
       answer + guardrails on
     </text>
   </g>
 
   <!-- Label: reason -> END -->
-  <g transform="translate(260, 720)">
-    <rect x="-115" y="-28" width="230" height="56" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
-    <text x="0" y="-10" text-anchor="middle" font-size="11.5" font-weight="600" fill="#334155">
+  <g transform="translate(260, 695)">
+    <rect x="-110" y="-26" width="220" height="52" rx="6" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+    <text x="0" y="-9" text-anchor="middle" font-size="11" font-weight="500" fill="#334155">
       Final Answer (guardrails off) /
     </text>
-    <text x="0" y="7" text-anchor="middle" font-size="11.5" font-weight="600" fill="#334155">
+    <text x="0" y="7" text-anchor="middle" font-size="11" font-weight="500" fill="#334155">
       LLM error /
     </text>
-    <text x="0" y="23" text-anchor="middle" font-size="11.5" font-weight="600" fill="#334155">
+    <text x="0" y="23" text-anchor="middle" font-size="11" font-weight="500" fill="#334155">
       step limit (loop guards off)
     </text>
   </g>
 
   <!-- Label: force_answer -> END -->
-  <g transform="translate(960, 715)">
-    <rect x="-45" y="-12" width="90" height="24" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
-    <text x="0" y="4" text-anchor="middle" font-size="11.5" font-weight="600" fill="#334155">
+  <g transform="translate(955, 690)">
+    <rect x="-40" y="-11" width="80" height="22" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+    <text x="0" y="4" text-anchor="middle" font-size="11" font-weight="500" fill="#334155">
       otherwise
     </text>
   </g>
 
   <!-- ========================================================================= -->
-  <!-- NODES LAYER                                                               -->
+  <!-- NODES LAYER (Flat, clean, rounded boxes with subtle borders)              -->
   <!-- ========================================================================= -->
 
   <!-- BOX OUTSIDE THE GRAPH: run_react_agent() -->
-  <g id="node-outside" filter="url(#shadow)">
-    <rect x="45" y="130" width="450" height="90" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6,4"/>
-    <!-- Small tag label -->
-    <rect x="58" y="118" width="124" height="22" rx="4" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,2"/>
-    <text x="120" y="133" text-anchor="middle" font-size="11" font-weight="600" fill="#475569">
+  <g id="node-outside">
+    <rect x="55" y="115" width="420" height="90" rx="8" fill="#fafafa" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4,4"/>
+    <!-- Sleek label -->
+    <text x="70" y="133" font-size="10.5" font-weight="600" fill="#64748b" letter-spacing="0.04em" text-transform="uppercase">
       outside the graph
     </text>
     <!-- Function Title -->
-    <text x="65" y="158" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="16" font-weight="700" fill="#0f172a">
+    <text x="70" y="157" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="600" fill="#0f172a">
       run_react_agent()
     </text>
     <!-- Description -->
-    <text x="65" y="182" font-size="12" fill="#475569">
+    <text x="70" y="179" font-size="11.5" fill="#64748b">
       resolve persona (fixed or auto via route_persona) + persona version
     </text>
-    <text x="65" y="202" font-size="12" fill="#475569">
+    <text x="70" y="197" font-size="11.5" fill="#64748b">
       + LLM config + provider/model &rarr; initial state
     </text>
   </g>
 
   <!-- NODE: START (Grey Terminal Box) -->
-  <g id="node-start" filter="url(#shadow)">
-    <rect x="530" y="148" width="90" height="55" rx="10" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
-    <text x="575" y="181" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="15" font-weight="700" fill="#1e293b">
+  <g id="node-start">
+    <rect x="530" y="134" width="90" height="52" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="575" y="165" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#334155">
       START
     </text>
   </g>
 
-  <!-- NODE: reason (HIGHLIGHTED, Blue Border #2f7bd8) -->
-  <g id="node-reason" filter="url(#shadow)">
-    <rect x="350" y="278" width="450" height="125" rx="10" fill="#e8f0fb" stroke="#2f7bd8" stroke-width="3"/>
+  <!-- NODE: reason (HIGHLIGHTED: Blue border #2f7bd8, pale blue fill #e8f0fb) -->
+  <g id="node-reason">
+    <rect x="350" y="260" width="450" height="120" rx="8" fill="#e8f0fb" stroke="#2f7bd8" stroke-width="2"/>
     <!-- Node Name -->
-    <text x="575" y="312" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="19" font-weight="700" fill="#1d4ed8">
+    <text x="575" y="293" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" font-weight="700" fill="#1d4ed8">
       reason
     </text>
     <!-- Subtitle 1 -->
-    <text x="575" y="338" text-anchor="middle" font-size="13" font-weight="600" fill="#334155">
+    <text x="575" y="318" text-anchor="middle" font-size="12.5" font-weight="500" fill="#334155">
       1 model call &rarr; parse_react_output()
     </text>
     <!-- Subtitle 2 -->
-    <text x="575" y="364" text-anchor="middle" font-size="11.5" fill="#64748b">
+    <text x="575" y="344" text-anchor="middle" font-size="11" fill="#64748b">
       prompt = persona + instructions + tools + history + trace;
     </text>
-    <text x="575" y="384" text-anchor="middle" font-size="11.5" fill="#64748b">
+    <text x="575" y="362" text-anchor="middle" font-size="11" fill="#64748b">
       stop at \nObservation:
     </text>
   </g>
 
   <!-- NODE: act -->
-  <g id="node-act" filter="url(#shadow)">
-    <rect x="45" y="475" width="310" height="95" rx="10" fill="#e8f0fb" stroke="#94a3b8" stroke-width="2"/>
+  <g id="node-act">
+    <rect x="55" y="450" width="300" height="90" rx="8" fill="#e8f0fb" stroke="#cbd5e1" stroke-width="1.5"/>
     <!-- Node Name -->
-    <text x="200" y="510" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="18" font-weight="700" fill="#0f172a">
+    <text x="205" y="483" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" font-weight="600" fill="#0f172a">
       act
     </text>
     <!-- Subtitle -->
-    <text x="200" y="536" text-anchor="middle" font-size="12" fill="#475569">
+    <text x="205" y="508" text-anchor="middle" font-size="11.5" fill="#64748b">
       repeat-call block (loop guards) &rarr;
     </text>
-    <text x="200" y="554" text-anchor="middle" font-size="12" fill="#475569">
+    <text x="205" y="525" text-anchor="middle" font-size="11.5" fill="#64748b">
       run tool &rarr; Observation
     </text>
   </g>
 
   <!-- NODE: force_answer (optional: loop_guards=True) -->
-  <g id="node-force-answer" filter="url(#shadow)">
-    <rect x="795" y="475" width="310" height="95" rx="10" fill="#e8f0fb" stroke="#94a3b8" stroke-width="2"/>
-    <!-- Badge -->
-    <rect x="860" y="465" width="180" height="20" rx="4" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
-    <text x="950" y="479" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">
+  <g id="node-force-answer">
+    <rect x="795" y="450" width="300" height="90" rx="8" fill="#e8f0fb" stroke="#cbd5e1" stroke-width="1.5"/>
+    <!-- Minimal text badge -->
+    <text x="945" y="470" text-anchor="middle" font-size="10.5" font-weight="500" fill="#b45309">
       optional: loop_guards=True
     </text>
     <!-- Node Name -->
-    <text x="950" y="514" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="18" font-weight="700" fill="#0f172a">
+    <text x="945" y="494" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" font-weight="600" fill="#0f172a">
       force_answer
     </text>
     <!-- Subtitle -->
-    <text x="950" y="539" text-anchor="middle" font-size="12" fill="#475569">
+    <text x="945" y="516" text-anchor="middle" font-size="11.5" fill="#64748b">
       step limit: one call to answer
     </text>
-    <text x="950" y="557" text-anchor="middle" font-size="12" fill="#475569">
+    <text x="945" y="533" text-anchor="middle" font-size="11.5" fill="#64748b">
       from observations
     </text>
   </g>
 
   <!-- NODE: guard (optional: guardrails=True) -->
-  <g id="node-guard" filter="url(#shadow)">
-    <rect x="415" y="665" width="320" height="95" rx="10" fill="#e8f0fb" stroke="#94a3b8" stroke-width="2"/>
-    <!-- Badge -->
-    <rect x="495" y="655" width="160" height="20" rx="4" fill="#ecfdf5" stroke="#059669" stroke-width="1"/>
-    <text x="575" y="669" text-anchor="middle" font-size="11" font-weight="600" fill="#065f46">
+  <g id="node-guard">
+    <rect x="420" y="640" width="310" height="90" rx="8" fill="#e8f0fb" stroke="#cbd5e1" stroke-width="1.5"/>
+    <!-- Minimal text badge -->
+    <text x="575" y="660" text-anchor="middle" font-size="10.5" font-weight="500" fill="#047857">
       optional: guardrails=True
     </text>
     <!-- Node Name -->
-    <text x="575" y="704" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="18" font-weight="700" fill="#0f172a">
+    <text x="575" y="684" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" font-weight="600" fill="#0f172a">
       guard
     </text>
     <!-- Subtitle -->
-    <text x="575" y="730" text-anchor="middle" font-size="12" fill="#475569">
+    <text x="575" y="706" text-anchor="middle" font-size="11.5" fill="#64748b">
       auto-log required inquiry;
     </text>
-    <text x="575" y="748" text-anchor="middle" font-size="12" fill="#475569">
+    <text x="575" y="723" text-anchor="middle" font-size="11.5" fill="#64748b">
       remove airfare quotes
     </text>
   </g>
 
   <!-- NODE: END (Grey Terminal Box) -->
-  <g id="node-end" filter="url(#shadow)">
-    <rect x="530" y="880" width="90" height="55" rx="10" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
-    <text x="575" y="913" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="16" font-weight="700" fill="#1e293b">
+  <g id="node-end">
+    <rect x="530" y="850" width="90" height="52" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="575" y="881" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#334155">
       END
     </text>
   </g>
