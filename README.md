@@ -5,6 +5,24 @@
 
 ---
 
+## Key findings
+
+From 497 completed, logged and automatically scored runs on 9 models (details in section 6 of [`c4_react_agent.ipynb`](c4_react_agent.ipynb)):
+
+1. **The model mattered more than anything else.** With identical settings (3 personas × 6 test cases): `dots-3-note-preview` and `nemotron-3.5-super-vl` 18/18, OpenAI `gpt-4o-mini` and `nemotron-3-super-120b` 17/18, Claude Haiku 4.5 16/18, `xing4.0` 14/18, `laguna-s-2.1` 13/18. *(§6.5)*
+2. **The personas tie on correctness but differ in voice and failure mode.** Aria 39/42, Marcus 36/42, Elena 38/42. Marcus answers in about 58 words; Aria and Elena use about 91. Only the warm personas invented airfares (Aria 6/33 answers, Elena 4/13, Marcus 0/27). *(§6.6)*
+3. **Fixing the persona/instruction conflict worked.** One boundary sentence (persona v2) cut invented airfares on Haiku from 4/10 to 0/10. *(§6.9)*
+4. **Prompting effects depend on the model.** Chain-of-thought plus few-shot examples prevented loops on xing4.0 (12/12 vs 12/18, one-sided Fisher p = 0.03). On Haiku, the same setup coincided with one arithmetic error: $5,100 instead of $4,700 in 6/6 runs vs 0/9 without. Instructions in the system prompt vs the user message made no difference. *(§6.2)*
+5. **No single sampling setting had a measurable effect** at 6 runs per condition. The exception is `max_tokens=120`, which made answers about 3× shorter with no loss of correctness. *(§6.3)*
+6. **The rules mostly control scope and length on a strong model.** Removing them left correctness almost unchanged (18/18 vs 16/17), but Aria's answers nearly doubled in length, and the only invented airfare in that test appeared without the rules. *(§6.7)*
+7. **The safety nets work, with honest limits.** Loop guards rescued 1 of 3 looping runs on xing4.0. Optional guardrails auto-log required questions and remove airfare quotes. *(§6.8, §5)*
+
+### The app in action
+
+![C4 Gradio app: persona controls, a $4,200 budget answer and the live Thought/Action/Observation trace](docs/c4_app_screenshot.png)
+
+---
+
 Builds on the WanderWise business assistant from Assignment C3: [WanderWise-C3-Business-Agent](https://github.com/Jadjnm/WanderWise-C3-Business-Agent)
 
 ## 1. Overview & Objectives
@@ -36,7 +54,8 @@ Rather than answering in a single pass, the agent moves through explicit thinkin
 | `react_core.py` | Standalone ReAct state machine, tools, persona configurations, and guardrails for C4 |
 | `c4_app.py` | Interactive Gradio application for C4 with real-time ReAct trace inspector |
 | `experiments.py` | Experiment harness for C4: persona, prompting, parameter, model, guardrails, instructions, and loop_guards suites |
-| `tests/test_react_agent.py` | Offline unit tests for C4 ReAct agent and tools (72 tests; no live API key required) |
+| `tests/test_react_agent.py` | Offline unit tests for C4 ReAct agent and tools (73 tests; no live API key required) |
+| `tests/test_persona_judge.py` | Offline mocked persona judge tests (14 tests; no live API key required) |
 | `README.md` | Documentation and experimental evaluation guide for C4 |
 | `.env.example` | Template for environment variables and provider credentials |
 | `requirements.txt` | Python package dependencies |
@@ -63,14 +82,14 @@ flowchart TD
 
     run --> START
     START --> reason
-    reason -.->|Action: tool(args)| act
-    act -->|Observation| reason
-    reason -.->|format error (no Action or Final Answer)| reason
-    reason -.->|Final Answer (guardrails on)| guard
+    reason -.->|"Action: tool(args)"| act
+    act -->|"Observation"| reason
+    reason -.->|"format error (no Action or Final Answer)"| reason
+    reason -.->|"Final Answer (guardrails on)"| guard
     reason -.->|"step limit (5), loop guards on"| force_answer
     reason -.->|"Final Answer (guardrails off) / LLM error / step limit (loop guards off)"| END_NODE
-    force_answer -.->|answer + guardrails on| guard
-    force_answer -.->|otherwise| END_NODE
+    force_answer -.->|"answer + guardrails on"| guard
+    force_answer -.->|"otherwise"| END_NODE
     guard --> END_NODE
 
     classDef terminal fill:#f1f5f9,stroke:#94a3b8,stroke-width:2px;
@@ -132,3 +151,5 @@ python -m unittest tests/test_react_agent.py -v
 # Or run every test in this repository
 python -m unittest discover -s tests -v
 ```
+
+Blind persona fidelity (notebook section 6.12): judge existing logged answers only and append resumable results to `logs/c4_persona_judge.jsonl` with `cmd /c "set OPENAI_API_KEY=&& set LLM_PROVIDER=openai&& python experiments.py --judge-personas"`; notebook tables work offline.
