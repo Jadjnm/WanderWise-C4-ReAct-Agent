@@ -1,0 +1,22 @@
+# Environment & credentials
+.env
+.env*.local
+
+# Logs (ignore all by default, but track the two C4 experiment logs)
+logs/*
+!logs/c4_experiments.jsonl
+!logs/c4_experiments_bedrock.jsonl
+
+# Python cache & build
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ipynb_checkpoints/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Local working files (course PDFs, script drafts)
+temp/

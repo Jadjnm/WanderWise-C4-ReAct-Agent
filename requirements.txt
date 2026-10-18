@@ -1,0 +1,8 @@
+google-genai>=1.0.0
+openai>=1.60,<4
+python-dotenv>=1.0,<2
+pypdf>=5.0,<7
+gradio>=5.0,<7
+notebook>=7,<9
+langgraph>=1.0,<2
+boto3>=1.39
