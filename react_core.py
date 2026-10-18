@@ -275,6 +275,7 @@ PERSONA_PROFILES: dict[str, dict[str, Any]] = {
     "friendly_advisor": {
         "name": "Aria (Friendly Concierge)",
         "tone": "Warm, welcoming, encouraging, empathetic, and conversational.",
+        "task": "First contact, general questions and leads.",
         "llm_config": {
             "temperature": 0.7,
             "top_p": 0.9,
@@ -296,10 +297,16 @@ PERSONA_PROFILES: dict[str, dict[str, Any]] = {
             "You are Aria, the friendly concierge of WanderWise Travel. Greet travelers warmly. "
             "Use encouraging language, share thoughtful travel inspiration, and help visitors discover their dream journey."
         ),
+        "prompt_tone_instructions_v2": (
+            "You are Aria, the friendly concierge of WanderWise Travel. Greet travelers warmly, "
+            "and inspire travelers using only details from WanderWise's catalog and tool results; "
+            "for costs or services outside the catalog (such as flights), say WanderWise doesn't quote them."
+        ),
     },
     "strict_auditor": {
         "name": "Marcus (Budget & Policy Auditor)",
         "tone": "Analytical, precise, objective, concise, and uncompromising on guardrails.",
+        "task": "Prices, budgets and policy checks.",
         "llm_config": {
             "temperature": 0.1,
             "top_p": 0.5,
@@ -321,10 +328,15 @@ PERSONA_PROFILES: dict[str, dict[str, Any]] = {
             "You are Marcus, the senior travel auditor at WanderWise. You communicate with absolute factual precision, "
             "highlight exact numbers, clearly itemize exclusions (no flights, no visas), and refuse to estimate undefined policies."
         ),
+        "prompt_tone_instructions_v2": (
+            "You are Marcus, the senior travel auditor at WanderWise. You communicate with absolute factual precision, "
+            "highlight exact numbers, clearly itemize exclusions (no flights, no visas), and refuse to estimate undefined policies."
+        ),
     },
     "creative_curator": {
         "name": "Elena (Adventurous Experience Curator)",
         "tone": "Evocative, sensory, culturally immersed, and experiential.",
+        "task": "Destination experiences and highlights.",
         "llm_config": {
             "temperature": 0.85,
             "top_p": 0.95,
@@ -345,6 +357,10 @@ PERSONA_PROFILES: dict[str, dict[str, Any]] = {
         "prompt_tone_instructions": (
             "You are Elena, the Lead Experience Curator at WanderWise. Paint vivid pictures of destinations (sounds, flavors, vistas) "
             "while strictly respecting verified package inclusions and pricing."
+        ),
+        "prompt_tone_instructions_v2": (
+            "You are Elena, the Lead Experience Curator at WanderWise. Paint vivid pictures of what the packages include; "
+            "describe only what the packages include, and never estimate prices, airfares or anything the tools didn't return."
         ),
     },
 }
@@ -375,19 +391,48 @@ PERSONA_CONFLICT_RULES = [
 ]
 
 
-def check_persona_conflicts() -> list[tuple[str, str, str, str]]:
+def check_persona_conflicts(version: str = "v1") -> list[tuple[str, str, str, str]]:
     """Scan each persona's prompt_tone_instructions for phrasing that pulls against operational rules.
 
     Returns a list of tuples: (persona_name, matched_phrase, rule_conflicted, evidence_note).
     Transparent, documented phrase scan rather than an LLM call.
     """
+    key = "prompt_tone_instructions_v2" if version == "v2" else "prompt_tone_instructions"
     conflicts: list[tuple[str, str, str, str]] = []
     for pkey, profile in PERSONA_PROFILES.items():
-        instructions = profile.get("prompt_tone_instructions", "")
+        instructions = profile.get(key, profile.get("prompt_tone_instructions", ""))
         for phrase, rule, evidence in PERSONA_CONFLICT_RULES:
             if phrase.lower() in instructions.lower():
                 conflicts.append((profile["name"], phrase, rule, evidence))
     return conflicts
+
+
+_STRICT_AUDITOR_KEYWORDS = ("budget", "cost", "price", "refund", "policy", "visa", "flight")
+_CREATIVE_CURATOR_KEYWORDS = ("highlights", "highlight", "experience", "culture", "food", "what is it like")
+
+
+def route_persona_with_reason(query: str) -> tuple[str, str]:
+    """Route query and return (persona_key, reason_string)."""
+    q = str(query or "").lower()
+    for kw in _STRICT_AUDITOR_KEYWORDS:
+        if kw in q:
+            return "strict_auditor", f"matched '{kw}' keyword -> strict_auditor (prices, budgets, policies)"
+    for kw in _CREATIVE_CURATOR_KEYWORDS:
+        if kw in q:
+            return "creative_curator", f"matched '{kw}' keyword -> creative_curator (experiences, highlights)"
+    return "friendly_advisor", "default fallback -> friendly_advisor (first contact, general questions, leads)"
+
+
+def route_persona(query: str) -> str:
+    """Route a customer query to the best-suited persona based on documented keyword rules.
+
+    Rules:
+    - budget / cost / price / refund / policy / visa / flight -> strict_auditor (Marcus: prices, budgets, policies)
+    - highlights / experience / culture / food / 'what is it like' -> creative_curator (Elena: experiences, highlights)
+    - Fallback -> friendly_advisor (Aria: first contact, general questions, leads)
+    """
+    key, _ = route_persona_with_reason(query)
+    return key
 
 
 # ==============================================================================
@@ -993,6 +1038,8 @@ class ReActAgentState(TypedDict, total=False):
     """LangGraph state representation for the manual ReAct loop."""
     user_query: str
     persona_key: str
+    persona_requested: str
+    persona_version: str  # "v1" | "v2"
     use_cot: bool
     few_shot: bool
     instruction_placement: str  # "system" | "user"
@@ -1043,6 +1090,9 @@ def build_prompt_parts(state: ReActAgentState) -> tuple[str | None, str]:
     """Return (system_prompt, user_message). With instruction_placement='user' the system
     prompt is None and persona + instructions travel inside the user message instead."""
     persona_data = PERSONA_PROFILES.get(state["persona_key"], PERSONA_PROFILES["friendly_advisor"])
+    persona_ver = state.get("persona_version", "v1")
+    instr_key = "prompt_tone_instructions_v2" if persona_ver == "v2" else "prompt_tone_instructions"
+    persona_prompt_line = persona_data.get(instr_key, persona_data["prompt_tone_instructions"])
     if state.get("use_cot", True):
         cot_directive = "Think step-by-step: always write an explicit 'Thought:' line before every Action or Final Answer."
     else:
@@ -1057,7 +1107,7 @@ def build_prompt_parts(state: ReActAgentState) -> tuple[str | None, str]:
             instructions += f"\n\n{WORKED_EXAMPLE}\n\n{EXTRA_FEW_SHOT_EXAMPLE}"
 
     agent_spec = (
-        f"PERSONA:\n{persona_data['prompt_tone_instructions']}\n\n"
+        f"PERSONA:\n{persona_prompt_line}\n\n"
         f"INSTRUCTIONS:\n{instructions}\n\n"
         f"{TOOL_DESCRIPTIONS}\n\n"
         f"REASONING DIRECTIVE:\n{cot_directive}"
@@ -1371,6 +1421,7 @@ def run_react_agent(
     llm_overrides: dict[str, Any] | None = None,
     history: list[dict[str, Any]] | None = None,
     guardrails: bool = False,
+    persona_version: str = "v1",
 ) -> dict[str, Any]:
     """Execute a query through the manual ReAct LangGraph workflow.
 
@@ -1380,20 +1431,32 @@ def run_react_agent(
     loop_guards: block repeated tool calls and force final answer from observations at step limit (default False).
     guardrails: run guard_node on the finished answer (auto-log required inquiries, remove airfare quotes).
         Off by default so experiments measure the model and prompt alone; the Gradio app turns it on.
+    persona_version: "v1" (default) or "v2" (boundary against outside-catalog cost fabrication).
     """
-    if persona_key not in PERSONA_PROFILES:
-        raise ValueError(f"Unknown persona '{persona_key}'. Choose from: {', '.join(PERSONA_PROFILES)}")
+    persona_requested = persona_key
+    route_reason = None
+    if persona_key == "auto":
+        resolved_persona, route_reason = route_persona_with_reason(query)
+    elif persona_key in PERSONA_PROFILES:
+        resolved_persona = persona_key
+    else:
+        raise ValueError(f"Unknown persona '{persona_key}'. Choose from: auto, {', '.join(PERSONA_PROFILES)}")
+
+    if persona_version not in ("v1", "v2"):
+        raise ValueError(f"persona_version must be 'v1' or 'v2', got '{persona_version}'")
     if instruction_placement not in INSTRUCTION_PLACEMENTS:
         raise ValueError(f"instruction_placement must be one of {INSTRUCTION_PLACEMENTS}")
     if instructions_mode not in INSTRUCTION_MODES:
         raise ValueError(f"instructions_mode must be one of {INSTRUCTION_MODES}")
 
-    llm_config = resolve_llm_config(persona_key, llm_overrides)
+    llm_config = resolve_llm_config(resolved_persona, llm_overrides)
     provider = get_active_provider()
     model = llm_config.get("model") or get_active_model(provider)
     initial_state: ReActAgentState = {
         "user_query": query,
-        "persona_key": persona_key,
+        "persona_key": resolved_persona,
+        "persona_requested": persona_requested,
+        "persona_version": persona_version,
         "use_cot": use_cot,
         "few_shot": few_shot,
         "instruction_placement": instruction_placement,
@@ -1441,8 +1504,11 @@ def run_react_agent(
     steps = final_state.get("react_steps", [])
     return {
         "query": query,
-        "persona": PERSONA_PROFILES[persona_key]["name"],
-        "persona_key": persona_key,
+        "persona": PERSONA_PROFILES[resolved_persona]["name"],
+        "persona_key": resolved_persona,
+        "persona_requested": persona_requested,
+        "persona_route_reason": route_reason,
+        "persona_version": persona_version,
         "use_cot": use_cot,
         "few_shot": few_shot,
         "instruction_placement": instruction_placement,

@@ -16,10 +16,11 @@ Rather than answering in a single pass, the agent moves through explicit thinkin
 
 ### Core Implementation
 * **No Prebuilt Executors:** The ReAct cycle is implemented manually via a custom LangGraph `StateGraph` using states, nodes (`reason`, `act`), and conditional edges (`should_continue`).
-* **Configurable Personas & Hyperparameter Alignment (with per-setting rationales):**
-  1. **Aria (Friendly Concierge):** Warm, welcoming, encouraging, empathetic, and conversational (`temp 0.7`: warm variety without factual drift; `top_p 0.9` / `top_k 40`: broad hospitable vocabulary; `freq 0.1` / `pres 0.2`: discourages repeating pleasantries and introduces fresh travel ideas; `max_tokens 600`: space for warm greetings and breakdowns).
-  2. **Marcus (Budget & Policy Auditor):** Analytical, precise, objective, concise, and uncompromising on guardrails (`temp 0.1`: deterministic and repeatable budget/policy answers; `top_p 0.5` / `top_k 10`: high-probability token selection eliminating speculation; `freq 0.4` / `pres 0.0`: prevents boilerplate repetition and stays strictly on verified numbers; `max_tokens 400`: concise audit brevity).
-  3. **Elena (Adventurous Experience Curator):** Evocative, sensory, culturally immersed, and experiential (`temp 0.85`: rich evocative sensory language; `top_p 0.95` / `top_k 64`: vibrant vocabulary for cultural immersion; `freq 0.2` / `pres 0.5`: nudges narrative forward to new sights and details rather than repeating; `max_tokens 800`: room for descriptive vignettes).
+* **Configurable Personas & Hyperparameter Alignment (with per-setting rationales and assigned tasks):**
+  1. **Aria (Friendly Concierge):** *Task:* First contact, general questions and leads. Warm, welcoming, encouraging, empathetic, and conversational (`temp 0.7`: warm variety without factual drift; `top_p 0.9` / `top_k 40`: broad hospitable vocabulary; `freq 0.1` / `pres 0.2`: discourages repeating pleasantries and introduces fresh travel ideas; `max_tokens 600`: space for warm greetings and breakdowns).
+  2. **Marcus (Budget & Policy Auditor):** *Task:* Prices, budgets and policy checks. Analytical, precise, objective, concise, and uncompromising on guardrails (`temp 0.1`: deterministic and repeatable budget/policy answers; `top_p 0.5` / `top_k 10`: high-probability token selection eliminating speculation; `freq 0.4` / `pres 0.0`: prevents boilerplate repetition and stays strictly on verified numbers; `max_tokens 400`: concise audit brevity).
+  3. **Elena (Adventurous Experience Curator):** *Task:* Destination experiences and highlights. Evocative, sensory, culturally immersed, and experiential (`temp 0.85`: rich evocative sensory language; `top_p 0.95` / `top_k 64`: vibrant vocabulary for cultural immersion; `freq 0.2` / `pres 0.5`: nudges narrative forward to new sights and details rather than repeating; `max_tokens 800`: room for descriptive vignettes).
+* **Demo Add-on Rates:** The deluxe room upgrade ($250 per person) and private guide ($400 flat) rates are demo values used only by the C4 budget tool; the C3 business summary lists room upgrades as unconfirmed.
 * **Prompt Engineering Experiments & Instructions Ablation:** Toggles for Chain-of-Thought on/off, zero-shot vs. few-shot, system prompt vs. in-message instructions, `instructions_mode` (`full` vs `format_only` rules ablation), and `loop_guards` (repeat-action block + forced final answer at step limit), plus per-run overrides of temperature, top-p, top-k, max tokens, penalties, and model, all run and logged by `experiments.py`.
 * **Persona/Instruction Conflict Analysis:** Automated `check_persona_conflicts()` scanner documenting tone instructions that pull against operational rules.
 * **Dedicated Instructions Block:** Explicit input/output contracts with an embedded worked example.
@@ -35,7 +36,7 @@ Rather than answering in a single pass, the agent moves through explicit thinkin
 | `react_core.py` | Standalone ReAct state machine, tools, persona configurations, and guardrails for C4 |
 | `c4_app.py` | Interactive Gradio application for C4 with real-time ReAct trace inspector |
 | `experiments.py` | Experiment harness for C4: persona, prompting, parameter, model, guardrails, instructions, and loop_guards suites |
-| `tests/test_react_agent.py` | Offline unit tests for C4 ReAct agent and tools (61 tests; no live API key required) |
+| `tests/test_react_agent.py` | Offline unit tests for C4 ReAct agent and tools (72 tests; no live API key required) |
 | `README.md` | Documentation and experimental evaluation guide for C4 |
 | `.env.example` | Template for environment variables and provider credentials |
 | `requirements.txt` | Python package dependencies |
@@ -44,22 +45,37 @@ Rather than answering in a single pass, the agent moves through explicit thinkin
 
 ## 3. ReAct State Machine Architecture
 
-```text
-               User Query
-                   |
-            +------------+
-            |   reason   | <----------------+
-            +------------+                  |
-                   |                        |
-         [Should Continue?]                 |
-          /              \                  |
-    Action Requested    Final Answer        |
-        /                  \                |
-  +----------+             +-----+          |
-  |   act    |             | END |          |
-  +----------+             +-----+          |
-       |                                    |
-       +--- Observation Generated ----------+
+![ReAct state machine](docs/react_graph.svg)
+
+```mermaid
+flowchart TD
+    subgraph outside["outside the graph"]
+        run["run_react_agent()<br/><small>resolve persona (fixed or auto via route_persona) + persona version + LLM config + provider/model -&gt; initial state</small>"]
+    end
+
+    START([START]):::terminal
+    END_NODE([END]):::terminal
+
+    reason["<b>reason</b><br/><small>1 model call -&gt; parse_react_output()</small><br/><small><i>prompt = persona + instructions + tools + history + trace; stop at \nObservation:</i></small>"]:::highlight
+    act["<b>act</b><br/><small>repeat-call block (loop guards) -&gt; run tool -&gt; Observation</small>"]
+    guard["<b>guard</b> <small>(optional: guardrails=True)</small><br/><small>auto-log required inquiry; remove airfare quotes</small>"]
+    force_answer["<b>force_answer</b> <small>(optional: loop_guards=True)</small><br/><small>step limit: one call to answer from observations</small>"]
+
+    run --> START
+    START --> reason
+    reason -.->|Action: tool(args)| act
+    act -->|Observation| reason
+    reason -.->|format error (no Action or Final Answer)| reason
+    reason -.->|Final Answer (guardrails on)| guard
+    reason -.->|"step limit (5), loop guards on"| force_answer
+    reason -.->|"Final Answer (guardrails off) / LLM error / step limit (loop guards off)"| END_NODE
+    force_answer -.->|answer + guardrails on| guard
+    force_answer -.->|otherwise| END_NODE
+    guard --> END_NODE
+
+    classDef terminal fill:#f1f5f9,stroke:#94a3b8,stroke-width:2px;
+    classDef highlight fill:#e8f0fb,stroke:#2f7bd8,stroke-width:3px;
+    classDef default fill:#e8f0fb,stroke:#94a3b8,stroke-width:2px;
 ```
 
 ### Optional code guardrails & loop guards
@@ -110,7 +126,7 @@ Every run (config, full trace, raw model output, metrics) is appended to `logs/c
 
 ### Option D: Run Unit Tests
 ```bash
-# Run C4 ReAct agent unit tests (61 tests)
+# Run C4 ReAct agent unit tests (73 tests)
 python -m unittest tests/test_react_agent.py -v
 
 # Or run every test in this repository

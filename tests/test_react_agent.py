@@ -69,6 +69,32 @@ class ReActAgentTests(unittest.TestCase):
         graph = core.build_react_graph()
         self.assertIsNotNone(graph)
 
+    def test_langgraph_state_machine_structure(self):
+        """Verify the compiled LangGraph nodes and edges match the architectural specification.
+
+        Guarantees docs/react_graph.svg and C4_README.md cannot silently drift from the implementation.
+        """
+        graph = core.react_graph.get_graph()
+        expected_nodes = {"__start__", "reason", "act", "guard", "force_answer", "__end__"}
+        self.assertEqual(set(graph.nodes.keys()), expected_nodes)
+
+        expected_edges = {
+            # Solid unconditional edges (conditional=False)
+            ("__start__", "reason", False),
+            ("act", "reason", False),
+            ("guard", "__end__", False),
+            # Conditional edges routed by should_continue / should_guard_forced (conditional=True)
+            ("reason", "act", True),
+            ("reason", "reason", True),
+            ("reason", "guard", True),
+            ("reason", "force_answer", True),
+            ("reason", "__end__", True),
+            ("force_answer", "guard", True),
+            ("force_answer", "__end__", True),
+        }
+        actual_edges = {(e.source, e.target, e.conditional) for e in graph.edges}
+        self.assertEqual(actual_edges, expected_edges)
+
     def test_should_continue_logic(self):
         # If final answer is present, must terminate
         state_done = {"final_answer": "Finished", "action_name": None, "iteration": 1}
@@ -752,6 +778,154 @@ class PersonaConflictTests(unittest.TestCase):
             self.assertTrue(len(phrase) > 0)
             self.assertTrue(len(rule) > 0)
             self.assertTrue(len(evidence) > 0)
+
+    def test_check_persona_conflicts_v2_has_no_conflicts(self):
+        conflicts_v2 = core.check_persona_conflicts(version="v2")
+        self.assertEqual(len(conflicts_v2), 0)
+
+
+class PersonaV2Tests(unittest.TestCase):
+    def test_v1_prompt_byte_for_byte_identical_to_default(self):
+        for pkey in core.PERSONA_PROFILES:
+            state_default: core.ReActAgentState = {
+                "user_query": "Test query",
+                "persona_key": pkey,
+                "use_cot": True,
+                "few_shot": True,
+                "instruction_placement": "system",
+            }
+            state_v1: core.ReActAgentState = {
+                **state_default,
+                "persona_version": "v1",
+            }
+            sys_def, user_def = core.build_prompt_parts(state_default)
+            sys_v1, user_v1 = core.build_prompt_parts(state_v1)
+            self.assertEqual(sys_def, sys_v1)
+            self.assertEqual(user_def, user_v1)
+
+    def test_v2_differs_only_in_persona_line(self):
+        for pkey in core.PERSONA_PROFILES:
+            state_v1: core.ReActAgentState = {
+                "user_query": "Test query",
+                "persona_key": pkey,
+                "use_cot": True,
+                "few_shot": True,
+                "instruction_placement": "system",
+                "persona_version": "v1",
+            }
+            state_v2: core.ReActAgentState = {
+                **state_v1,
+                "persona_version": "v2",
+            }
+            sys_v1, user_v1 = core.build_prompt_parts(state_v1)
+            sys_v2, user_v2 = core.build_prompt_parts(state_v2)
+            self.assertEqual(user_v1, user_v2)
+
+            if pkey == "strict_auditor":
+                self.assertEqual(sys_v1, sys_v2)
+            else:
+                v1_tone = core.PERSONA_PROFILES[pkey]["prompt_tone_instructions"]
+                v2_tone = core.PERSONA_PROFILES[pkey]["prompt_tone_instructions_v2"]
+                self.assertNotEqual(v1_tone, v2_tone)
+                self.assertEqual(sys_v1.replace(v1_tone, v2_tone), sys_v2)
+
+    def test_persona_version_validation_and_result(self):
+        with self.assertRaises(ValueError):
+            core.run_react_agent("test", persona_version="invalid")
+
+        with patch("react_core.get_active_provider", return_value="simulated"):
+            res_v1 = core.run_react_agent("test", persona_version="v1")
+            self.assertEqual(res_v1["persona_version"], "v1")
+            res_v2 = core.run_react_agent("test", persona_version="v2")
+            self.assertEqual(res_v2["persona_version"], "v2")
+
+
+class PersonaRoutingTests(unittest.TestCase):
+    def test_routing_keyword_rules(self):
+        # Strict auditor keywords: budget, cost, price, refund, policy, visa, flight
+        self.assertEqual(core.route_persona("What is the trip budget?"), "strict_auditor")
+        self.assertEqual(core.route_persona("How much does it cost?"), "strict_auditor")
+        self.assertEqual(core.route_persona("Is there a discount on the price?"), "strict_auditor")
+        self.assertEqual(core.route_persona("Can I get a refund if cancelled?"), "strict_auditor")
+        self.assertEqual(core.route_persona("What is your cancellation policy?"), "strict_auditor")
+        self.assertEqual(core.route_persona("Do you help obtain a tourist visa?"), "strict_auditor")
+        self.assertEqual(core.route_persona("Do you book international flights?"), "strict_auditor")
+
+        # Creative curator keywords: highlights, experience, culture, food, what is it like
+        self.assertEqual(core.route_persona("Tell me about the highlights of Japan"), "creative_curator")
+        self.assertEqual(core.route_persona("What is the cultural experience like?"), "creative_curator")
+        self.assertEqual(core.route_persona("Tell me about Italian food tasting"), "creative_curator")
+        self.assertEqual(core.route_persona("What is it like visiting the Alps?"), "creative_curator")
+
+        # Fallback -> friendly_advisor
+        self.assertEqual(core.route_persona("Hello, I would like to plan a trip with Dana."), "friendly_advisor")
+        self.assertEqual(core.route_persona("I want a honeymoon consultation."), "friendly_advisor")
+
+    def test_auto_persona_in_run_react_agent(self):
+        with patch("react_core.get_active_provider", return_value="simulated"):
+            res = core.run_react_agent("Calculate the total budget for 2 people", persona_key="auto")
+            self.assertEqual(res["persona_requested"], "auto")
+            self.assertEqual(res["persona_key"], "strict_auditor")
+            self.assertEqual(res["persona"], core.PERSONA_PROFILES["strict_auditor"]["name"])
+            self.assertIn("budget", res["persona_route_reason"])
+
+            res_fb = core.run_react_agent("I'd like a consultation. Name: Dana, dana@x.com", persona_key="auto")
+            self.assertEqual(res_fb["persona_requested"], "auto")
+            self.assertEqual(res_fb["persona_key"], "friendly_advisor")
+            self.assertIn("fallback", res_fb["persona_route_reason"])
+
+
+class FisherExactTests(unittest.TestCase):
+    def test_fisher_exact_against_hand_computed_value(self):
+        import experiments as exp
+        # 12/12 vs 12/18: p = comb(18, 6) / comb(30, 6) = 18564 / 593775 = 0.03126437...
+        p = exp.fisher_exact_one_sided(12, 12, 12, 18)
+        self.assertAlmostEqual(p, 0.03126437, places=5)
+
+    def test_fisher_exact_boundaries(self):
+        import experiments as exp
+        self.assertEqual(exp.fisher_exact_one_sided(0, 0, 0, 0), 1.0)
+        self.assertEqual(exp.fisher_exact_one_sided(5, 5, 5, 5), 1.0)
+
+
+class NewSuitesTests(unittest.TestCase):
+    def test_persona_v2_suite_conditions_and_defaults(self):
+        import experiments as exp
+        self.assertIn("persona_v2", exp.SUITES)
+        self.assertNotIn("persona_v2", exp.CORE_SUITES)
+        conds = exp.persona_v2_conditions("friendly_advisor")
+        self.assertEqual(len(conds), 4)  # 2 personas x 2 versions
+        labels = [c[0] for c in conds]
+        self.assertIn("persona=friendly_advisor | version=v1", labels)
+        self.assertIn("persona=friendly_advisor | version=v2", labels)
+        self.assertIn("persona=creative_curator | version=v1", labels)
+        self.assertIn("persona=creative_curator | version=v2", labels)
+
+    def test_auto_persona_suite_conditions(self):
+        import experiments as exp
+        self.assertIn("auto_persona", exp.SUITES)
+        self.assertNotIn("auto_persona", exp.CORE_SUITES)
+        conds = exp.auto_persona_conditions("friendly_advisor")
+        self.assertEqual(len(conds), 2)
+        labels = [c[0] for c in conds]
+        self.assertIn("persona=auto", labels)
+        self.assertIn("persona=friendly_advisor", labels)
+
+    def test_model_override_applied_to_conditions(self):
+        import experiments as exp
+        conds = [("base", {"persona_key": "friendly_advisor"}), ("custom", {"persona_key": "strict_auditor", "llm_overrides": {"model": "m_custom"}})]
+        applied = []
+        def fake_run(query, **kwargs):
+            applied.append(kwargs.get("llm_overrides", {}).get("model"))
+            return {"error": None, "stopped_reason": "final_answer", "final_answer": "ok", "tools_used": [],
+                    "iterations": 1, "latency_s": 0.0, "model": kwargs.get("llm_overrides", {}).get("model", "def"),
+                    "provider": "p", "simulated": False, "format_errors": 0}
+
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(exp, "EXPERIMENT_LOG", Path(tmp) / "exp.jsonl"), \
+             patch.object(exp.core, "run_react_agent", side_effect=fake_run):
+            exp.run_conditions("test_suite", conds, [exp.TEST_CASES[0]], model_override="m_override", verbose=False)
+        self.assertEqual(applied, ["m_override", "m_custom"])
 
 
 if __name__ == "__main__":

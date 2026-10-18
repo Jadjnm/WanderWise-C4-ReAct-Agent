@@ -4,7 +4,8 @@ import gradio as gr
 from react_core import PERSONA_PROFILES, get_active_model, get_active_provider, run_react_agent
 
 PERSONA_CHOICES = {
-    f"{p['name']} - Temp: {p['llm_config']['temperature']}": key for key, p in PERSONA_PROFILES.items()
+    "Auto (route by question)": "auto",
+    **{f"{p['name']} - Temp: {p['llm_config']['temperature']}": key for key, p in PERSONA_PROFILES.items()},
 }
 
 
@@ -38,6 +39,8 @@ def chat_react(
     trace_lines = [f"### 🧠 ReAct Execution Trace ({result['persona']})\n"]
     if result["simulated"]:
         trace_lines.append("> ⚠️ **Offline simulator** — no API key configured. These are not real model outputs.\n")
+    if result.get("persona_requested") == "auto":
+        trace_lines.append(f"> 🤖 **Auto-routed persona:** {result['persona']} ({result.get('persona_route_reason', '')})\n\n")
     for i, step in enumerate(result["steps"], 1):
         stype = step["type"].upper()
         content = step["content"]
@@ -54,9 +57,14 @@ def chat_react(
     for event in result.get("loop_guard_events", []):
         trace_lines.append(f"🔁 **Loop guard:** {event}\n")
 
+    persona_footer = f"**Persona:** {result['persona']}"
+    if result.get("persona_requested") == "auto":
+        persona_footer += f" (routed from auto: {result.get('persona_route_reason', '')})"
+
     trace_lines.append(
         f"🏁 **Stopped:** {result['stopped_reason']} | **Iterations:** {result['iterations']} | "
         f"**Format errors:** {result['format_errors']} | **Latency:** {result['latency_s']}s\n\n"
+        f"{persona_footer}\n\n"
         f"**CoT:** {use_cot} | **Few-shot:** {few_shot} | **Instructions in:** {placement} message | "
         f"**Guardrails:** {guardrails} | **Loop guards:** {loop_guards} | "
         f"**Model:** `{result['provider']}/{result['model']}` | **Config:** `{result['llm_config']}`"
@@ -68,6 +76,10 @@ def chat_react(
 
 def build_c4_demo():
     persona_options = list(PERSONA_CHOICES)
+    aria_default = next(
+        (label for label, key in PERSONA_CHOICES.items() if key == "friendly_advisor"),
+        persona_options[0],
+    )
     provider = get_active_provider()
 
     with gr.Blocks(title="✈️ WanderWise ReAct Agent | Assignment C4") as demo:
@@ -105,7 +117,7 @@ def build_c4_demo():
                 gr.Markdown("### ⚙️ Persona & Thinking Controls")
                 persona_selector = gr.Dropdown(
                     choices=persona_options,
-                    value=persona_options[0],
+                    value=aria_default,
                     label="Active Persona & LLM Configuration",
                 )
                 cot_toggle = gr.Checkbox(label="Enable Chain-of-Thought (Step-by-Step Reasoning)", value=True)

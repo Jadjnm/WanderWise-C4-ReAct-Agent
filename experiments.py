@@ -14,6 +14,7 @@ Usage:
 
 import argparse
 import json
+import math
 import re
 import sys
 import time
@@ -21,6 +22,35 @@ from datetime import datetime, timezone
 from typing import Any
 
 import react_core as core
+
+
+def fisher_exact_one_sided(a_pass: int, a_n: int, b_pass: int, b_n: int) -> float:
+    """One-sided Fisher's exact test (hypergeometric p-value) using math.comb.
+
+    Tests whether Group A has a higher pass rate than Group B.
+    Computes P(X >= a_pass) under the hypergeometric null distribution
+    given the observed margins. If rate_a < rate_b, computes P(X <= a_pass).
+    """
+    k = a_pass + b_pass
+    N = a_n + b_n
+    if N == 0 or a_n == 0 or b_n == 0:
+        return 1.0
+
+    denom = math.comb(N, k)
+    if denom == 0:
+        return 1.0
+
+    rate_a = a_pass / a_n
+    rate_b = b_pass / b_n
+    if rate_a >= rate_b:
+        x_min = a_pass
+        x_max = min(a_n, k)
+    else:
+        x_min = max(0, k - b_n)
+        x_max = a_pass
+
+    num = sum(math.comb(a_n, x) * math.comb(b_n, k - x) for x in range(x_min, x_max + 1))
+    return num / denom
 
 EXPERIMENT_LOG = core.BASE_DIR / "logs" / "c4_experiments.jsonl"
 # Tool side effects from experiments go here so the demo logs stay clean
@@ -179,6 +209,23 @@ def loop_guards_conditions(_persona: str) -> list[tuple[str, dict[str, Any]]]:
     ]
 
 
+def persona_v2_conditions(_persona: str) -> list[tuple[str, dict[str, Any]]]:
+    """friendly_advisor and creative_curator x versions {v1, v2}."""
+    return [
+        (f"persona={key} | version={ver}", {**BASELINE, "persona_key": key, "persona_version": ver})
+        for key in ("friendly_advisor", "creative_curator")
+        for ver in ("v1", "v2")
+    ]
+
+
+def auto_persona_conditions(_persona: str) -> list[tuple[str, dict[str, Any]]]:
+    """Auto routing vs default friendly_advisor across all 6 cases."""
+    return [
+        ("persona=auto", {**BASELINE, "persona_key": "auto"}),
+        ("persona=friendly_advisor", {**BASELINE, "persona_key": "friendly_advisor"}),
+    ]
+
+
 SUITES = {
     "personas": persona_conditions,
     "prompting": prompting_conditions,
@@ -187,6 +234,8 @@ SUITES = {
     "guardrails": guardrails_conditions,
     "instructions": instructions_conditions,
     "loop_guards": loop_guards_conditions,
+    "persona_v2": persona_v2_conditions,
+    "auto_persona": auto_persona_conditions,
 }
 CORE_SUITES = ("personas", "prompting", "params")  # what --suite all runs
 
@@ -251,6 +300,7 @@ def run_conditions(
     verbose: bool = True,
     max_consecutive_errors: int = 3,
     skip: set[tuple[str, str, str, str, int]] | None = None,
+    model_override: str | None = None,
 ) -> list[dict[str, Any]]:
     """skip: run keys (model, suite, condition, case_id, repeat) already logged successfully (--resume)."""
     run_id = run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -262,7 +312,13 @@ def run_conditions(
     try:
         total = len(conditions) * len(cases) * repeats
         n = 0
-        for label, kwargs in conditions:
+        for label, raw_kwargs in conditions:
+            kwargs = dict(raw_kwargs)
+            if model_override:
+                ov = dict(kwargs.get("llm_overrides") or {})
+                if "model" not in ov:
+                    ov["model"] = model_override
+                kwargs["llm_overrides"] = ov
             model = (kwargs.get("llm_overrides") or {}).get("model") or core.get_active_model()
             for case in cases:
                 for rep in range(repeats):
@@ -369,11 +425,14 @@ def run_suite(
     sleep_s: float = 0.0,
     verbose: bool = True,
     resume: bool = False,
+    model: str | None = None,
 ) -> list[dict[str, Any]]:
     """Notebook-friendly entry point. suite: personas | prompting | params | all.
     resume=True skips runs already logged without an error (to continue after a stop)."""
     if suite == "loop_guards" and case_ids is None:
         case_ids = ["policy_flights", "policy_cancellation_unknown"]
+    if suite == "persona_v2" and case_ids is None:
+        case_ids = ["policy_flights", "budget_bali_upgrade", "search_japan_group"]
     cases = [c for c in TEST_CASES if not case_ids or c["id"] in case_ids]
     if not cases:
         raise ValueError(f"No test cases match {case_ids}. Available: {[c['id'] for c in TEST_CASES]}")
@@ -385,7 +444,7 @@ def run_suite(
         if name not in SUITES:
             raise ValueError(f"Unknown suite '{name}'. Choose from: {', '.join(SUITES)}, all")
         try:
-            records += run_conditions(name, SUITES[name](persona), cases, repeats, sleep_s, run_id, verbose, skip=skip)
+            records += run_conditions(name, SUITES[name](persona), cases, repeats, sleep_s, run_id, verbose, skip=skip, model_override=model)
         except ExperimentAborted as aborted:
             records += aborted.records
             print("Remaining runs skipped. Partial results are logged; re-run the same command with --resume to continue.")
@@ -453,7 +512,8 @@ def main() -> None:
     if provider == "simulated":
         print("WARNING: no API key configured (or REACT_SIMULATE=1). Results come from the offline simulator.")
 
-    records = run_suite(args.suite, args.persona, args.cases, args.repeats, args.sleep, resume=args.resume)
+    model_override = args.model if (args.model and not args.rescore) else None
+    records = run_suite(args.suite, args.persona, args.cases, args.repeats, args.sleep, resume=args.resume, model=model_override)
     if not records:
         print("No runs completed.")
         return

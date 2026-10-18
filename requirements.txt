@@ -6,3 +6,4 @@ gradio>=5.0,<7
 notebook>=7,<9
 langgraph>=1.0,<2
 boto3>=1.39
+matplotlib>=3.8  # notebook charts only
