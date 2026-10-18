@@ -16,6 +16,7 @@ From 497 completed, logged and automatically scored runs on 9 models (details in
 5. **No single sampling setting had a measurable effect** at 6 runs per condition. The exception is `max_tokens=120`, which made answers about 3× shorter with no loss of correctness. *(§6.3)*
 6. **The rules mostly control scope and length on a strong model.** Removing them left correctness almost unchanged (18/18 vs 16/17), but Aria's answers nearly doubled in length, and the only invented airfare in that test appeared without the rules. *(§6.7)*
 7. **The safety nets work, with honest limits.** Loop guards rescued 1 of 3 looping runs on xing4.0. Optional guardrails auto-log required questions and remove airfare quotes. *(§6.8, §5)*
+8. **The persona voices are recognisable, but unevenly.** A blind LLM judge identified the right persona in 58% of answers (chance 33%; a length-only guess got 50%). Marcus is easy to spot; Elena is often taken for Marcus, and the v2 boundary weakened her voice further. *(§6.12)*
 
 ### The app in action
 

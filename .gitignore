@@ -6,6 +6,7 @@
 logs/*
 !logs/c4_experiments.jsonl
 !logs/c4_experiments_bedrock.jsonl
+!logs/c4_persona_judge.jsonl
 
 # Python cache & build
 __pycache__/
