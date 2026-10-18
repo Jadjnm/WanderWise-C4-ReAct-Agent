@@ -7,22 +7,24 @@
 
 ## Key findings
 
-From 497 completed, logged and automatically scored runs on 9 models (details in section 6 of [`c4_react_agent.ipynb`](c4_react_agent.ipynb)):
+From 497 error-free logged and automatically scored runs on 9 models (details in section 6 of [`c4_react_agent.ipynb`](c4_react_agent.ipynb)):
 
 1. **The model mattered more than anything else.** With identical settings (3 personas × 6 test cases): `dots-3-note-preview` and `nemotron-3.5-super-vl` 18/18, OpenAI `gpt-4o-mini` and `nemotron-3-super-120b` 17/18, Claude Haiku 4.5 16/18, `xing4.0` 14/18, `laguna-s-2.1` 13/18. *(§6.5)*
-2. **The personas tie on correctness but differ in voice and failure mode.** Aria 39/42, Marcus 36/42, Elena 38/42. Marcus answers in about 58 words; Aria and Elena use about 91. Only the warm personas invented airfares (Aria 6/33 answers, Elena 4/13, Marcus 0/27). *(§6.6)*
+2. **The personas have similar correctness but differ in voice and failure mode.** Aria 39/42, Marcus 36/42, Elena 38/42. Marcus answers in about 58 words; Aria and Elena use about 91. Only the warm personas invented airfares (with the original v1 wording: Aria 6/33 answers, Elena 4/13, Marcus 0/27). *(§6.6)*
 3. **Fixing the persona/instruction conflict worked.** One boundary sentence (persona v2) cut invented airfares on Haiku from 4/10 to 0/10. *(§6.9)*
 4. **Prompting effects depend on the model.** Chain-of-thought plus few-shot examples prevented loops on xing4.0 (12/12 vs 12/18, one-sided Fisher p = 0.03). On Haiku, the same setup coincided with one arithmetic error: $5,100 instead of $4,700 in 6/6 runs vs 0/9 without. Instructions in the system prompt vs the user message made no difference. *(§6.2)*
-5. **No single sampling setting had a measurable effect** at 6 runs per condition. The exception is `max_tokens=120`, which made answers about 3× shorter with no loss of correctness. *(§6.3)*
+5. **No single sampling setting had a measurable effect** at 6 runs per condition. The exception is `max_tokens=120`, which shortened Haiku answers from 135 to 43 words and xing4.0 answers from 78 to 52, with no loss of correctness. *(§6.3)*
 6. **The rules mostly control scope and length on a strong model.** Removing them left correctness almost unchanged (18/18 vs 16/17), but Aria's answers nearly doubled in length, and the only invented airfare in that test appeared without the rules. *(§6.7)*
 7. **The safety nets work, with honest limits.** Loop guards rescued 1 of 3 looping runs on xing4.0. Optional guardrails auto-log required questions and remove airfare quotes. *(§6.8, §5)*
-8. **The persona voices are recognisable, but unevenly.** A blind LLM judge identified the right persona in 58% of answers (chance 33%; a length-only guess got 50%). Marcus is easy to spot; Elena is often taken for Marcus, and the v2 boundary weakened her voice further. *(§6.12)*
+8. **The persona voices are recognisable, but unevenly.** A blind LLM judge identified the right persona in 70/121 answers (57.9%; chance 33.3%). On the same 117 answers with a length baseline, the judge scored 57.3% versus 49.6% for length. Marcus is easy to spot; Elena is often taken for Marcus, and the v2 boundary weakened her voice further. *(§6.12)*
 
 ### The app in action
 
 ![C4 Gradio app: persona controls, a $4,200 budget answer and the live Thought/Action/Observation trace](docs/c4_app_screenshot.png)
 
 ---
+
+Companion repository: [WanderWise-C3-Business-Agent](https://github.com/Jadjnm/WanderWise-C3-Business-Agent).
 
 Builds on the WanderWise business assistant from Assignment C3: [WanderWise-C3-Business-Agent](https://github.com/Jadjnm/WanderWise-C3-Business-Agent)
 
@@ -54,12 +56,20 @@ Rather than answering in a single pass, the agent moves through explicit thinkin
 | `c4_react_agent.ipynb` | C4 notebook: manual LangGraph ReAct state machine, persona design, and experiment evaluation |
 | `react_core.py` | Standalone ReAct state machine, tools, persona configurations, and guardrails for C4 |
 | `c4_app.py` | Interactive Gradio application for C4 with real-time ReAct trace inspector |
-| `experiments.py` | Experiment harness for C4: persona, prompting, parameter, model, guardrails, instructions, and loop_guards suites |
+| `experiments.py` | Experiment harness for C4: personas, prompting, params, models, guardrails, instructions, loop_guards, persona_v2 and auto_persona suites |
 | `tests/test_react_agent.py` | Offline unit tests for C4 ReAct agent and tools (73 tests; no live API key required) |
 | `tests/test_persona_judge.py` | Offline mocked persona judge tests (14 tests; no live API key required) |
 | `README.md` | Documentation and experimental evaluation guide for C4 |
 | `.env.example` | Template for environment variables and provider credentials |
 | `requirements.txt` | Python package dependencies |
+| `.gitattributes` | Git text and line-ending normalization rules |
+| `.gitignore` | Git exclusions for secrets, caches and generated files |
+| `docs/c4_app_screenshot.png` | C4 Gradio application screenshot |
+| `docs/react_graph.svg` | Vector illustration of the C4 ReAct state graph |
+| `docs/react_graph_preview.png` | Raster preview of the C4 ReAct state graph |
+| `logs/c4_experiments.jsonl` | Recorded OpenRouter/OpenAI experiments with configurations, traces and metrics |
+| `logs/c4_experiments_bedrock.jsonl` | Recorded Bedrock experiments with configurations, traces and metrics |
+| `logs/c4_persona_judge.jsonl` | Saved blind persona judgments and length-baseline predictions for offline analysis |
 
 ---
 
@@ -134,6 +144,8 @@ python experiments.py --suite models --models model_a,model_b --sleep 5   # ever
 python experiments.py --suite guardrails                                  # personas with guardrails off vs on
 python experiments.py --suite instructions --sleep 3                      # instructions ablation (full vs format_only)
 python experiments.py --suite loop_guards --repeats 3 --sleep 5           # strict_auditor loop guards off vs on
+python experiments.py --suite persona_v2                                  # Aria/Elena v1 vs v2
+python experiments.py --suite auto_persona                                # automatic routing vs Aria
 python experiments.py --suite prompting --repeats 3 --resume               # add repeats or resume after a stop
 python experiments.py --rescore                                            # re-score everything, latest run per key
 ```
@@ -149,8 +161,14 @@ Every run (config, full trace, raw model output, metrics) is appended to `logs/c
 # Run C4 ReAct agent unit tests (73 tests)
 python -m unittest tests/test_react_agent.py -v
 
-# Or run every test in this repository
-python -m unittest discover -s tests -v
+# Run every C4 test (87 tests: 73 ReAct + 14 judge; complete published C4 suite)
+python -m unittest tests.test_react_agent tests.test_persona_judge -v
 ```
 
 Blind persona fidelity (notebook section 6.12): judge existing logged answers only and append resumable results to `logs/c4_persona_judge.jsonl` with `cmd /c "set OPENAI_API_KEY=&& set LLM_PROVIDER=openai&& python experiments.py --judge-personas"`; notebook tables work offline.
+
+The combined working folder also contains the 30 C3 tests; `python -m unittest discover -s tests` runs 117 tests there.
+
+C3 companion demo: [Watch the C3 demo video](https://mailaub-my.sharepoint.com/:v:/g/personal/jne20_mail_aub_edu/IQBS758Xsy8gSI1HMyzuLB8-AYwz8GK7bNJh5nVka8Nwctc?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0&e=T8ofLM). [Try the app on Hugging Face Spaces](https://huggingface.co/spaces/jadjnm/wanderwise-aria).
+
+Default models: OpenRouter `dots-studio/dots-3-note-preview:free`; Bedrock Claude Haiku 4.5 (`us.anthropic.claude-haiku-4-5-20251001-v1:0`); Gemini `gemini-3.8-flash`; OpenAI `gpt-4o-mini`.

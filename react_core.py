@@ -4,7 +4,7 @@ Course: EECE 503P/798S: Agentic Systems (Assignment C4)
 Implements a manual ReAct loop using LangGraph (StateGraph) without prebuilt AgentExecutors.
 Supports multiple configurable personas, prompt-engineering toggles (CoT, few-shot,
 system vs in-message instructions), per-run LLM parameter overrides, multi-turn memory,
-and three live providers (Gemini / OpenRouter / OpenAI) plus a clearly labelled offline simulator.
+and four live providers (Gemini / OpenRouter / OpenAI / AWS Bedrock) plus a clearly labelled offline simulator.
 """
 
 import ast
